@@ -59,7 +59,7 @@ p_dict_defaults = {	'Elem':'Rb', 'Dline':'D2',
 							'Btheta':0, 'Bphi':0,
 							'Constrain':True, 'DoppTemp':20.,
 							'rb85frac':72.17, 'K40frac':0.01, 'K41frac':6.73,
-							'BoltzmannFactor':True, 'popShift87':0, 'popShift85':0}
+							'BoltzmannFactor':True, 'popShift87':0, 'popShift85':0, 'sigma': 0.5, 'X0_shift': 0.3}
 
 def FreqStren(groundLevels,excitedLevels,groundDim,
 			  excitedDim,groundPop,Dline, p_dict, Rb_isotope,hand,BoltzmannFactor=True,T=293.16):
@@ -215,7 +215,7 @@ def FreqStren(groundLevels,excitedLevels,groundDim,
 	#print 'No transitions (ElecSus): ',transNo
 	return transitionFrequency, transitionStrength, transNo
 
-def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,
+def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,Rb_isotope,
 		ltransno,lenergy,lstrength,
 		rtransno,renergy,rstrength,
 		ztransno,zenergy,zstrength):
@@ -243,20 +243,48 @@ def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,
 	ldisp = zeros(xpts)
 	for line in range(ltransno+1):
 		xc = lenergy[line]
-		lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
-		ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		if Rb_isotope == '87':
+			if line <= 3:
+				# Rb87 F=1 transitions
+				lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+				ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+			else:
+				lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+				ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		else:
+			lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+			ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
 	rab = zeros(xpts)
 	rdisp = zeros(xpts)
 	for line in range(rtransno+1):
 		xc = renergy[line]
-		rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
-		rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		if Rb_isotope == '87':
+			if line <= 3:
+				# Rb87 F=1 transitions
+				rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+				rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+			else:
+				rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+				rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		else:
+			rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+			rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		
 	zab = zeros(xpts)
 	zdisp = zeros(xpts)
 	for line in range(ztransno+1):
 		xc = zenergy[line]
-		zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
-		zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		if Rb_isotope == '87':
+			if line <= 3:
+				# Rb87 F=1 transitions
+				zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6) 
+				zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+			else:
+				zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+				zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		else:
+			zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+			zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
 	return lab, ldisp, rab, rdisp, zab, zdisp
 
 def calc_chi(X, p_dict, groundPop,verbose=False):			   
@@ -567,6 +595,8 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 	# can then convolve with different velocity distribution later on
 		
 	d = (array(X)-shift) #Linear detuning
+
+
 	xpts = len(d)
 	maxdev = amax(abs(d))
 
@@ -600,18 +630,20 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 		lab85, ldisp85, rab85, rdisp85, zab85, zdisp85 = 0,0,0,0,0,0
 		lab87, ldisp87, rab87, rdisp87, zab87, zdisp87 = 0,0,0,0,0,0
 		if rb85frac!=0.0:
+			Rb_isotope = '85'
 			lab85, ldisp85, rab85, rdisp85, zab85, zdisp85 = add_voigt(d,DoppTemp,
 													   Rb85atom.mass,
 													   wavenumber,gamma,
-													   voigtwidth,
+													   voigtwidth,Rb_isotope,
 													   ltransno85,lenergy85,lstrength85,
 													   rtransno85,renergy85,rstrength85,
 													   ztransno85,zenergy85,zstrength85)
 		if rb87frac!=0.0:
+			Rb_isotope = '87'
 			lab87, ldisp87, rab87, rdisp87, zab87, zdisp87 = add_voigt(d,DoppTemp,
 													   Rb87atom.mass,
 													   wavenumber,gamma,
-													   voigtwidth,
+													   voigtwidth,Rb_isotope,
 													   ltransno87,lenergy87,lstrength87,
 													   rtransno87,renergy87,rstrength87,
 													   ztransno87,zenergy87,zstrength87)
@@ -850,7 +882,7 @@ def get_Efield(X, E_in, Chi, p_dict, verbose=False):
 	#return E_out.T[0], np.matrix(RM_ary.T[i])
 	return fast_E_out.T[0], np.matrix(RM_ary.T[-1])
 
-def get_spectra(X, E_in, p_dict, groundPop, popShift87, popShift85, outputs=None):
+def get_spectra(X, E_in, p_dict, groundPop, add_gaussian, outputs=None):
 	""" 
 	Calls get_Efield() to get Electric field, then use Jones matrices 
 	to calculate experimentally useful quantities.
@@ -982,8 +1014,30 @@ def get_spectra(X, E_in, p_dict, groundPop, popShift87, popShift85, outputs=None
 	
 	# normalised by input intensity
 	I_in = (E_in * E_in.conjugate()).sum(axis=0)
+
+	def gaussian(x, mu, sigma):
+		return np.exp(-np.power(x - mu, 2.) / (2 * np.power(sigma, 2.)))
+
 	
-	S0 = (E_out * E_out.conjugate()).sum(axis=0) / I_in
+	
+	if add_gaussian == True:
+
+		_Rb87F1 = 4.15; _Rb85F2 = 1.675; _Rb85F3 = -1.232; _Rb87F2 = -2.366
+
+		X0_shift = p_dict['X0_shift']
+
+		X0 = (_Rb87F1 + X0_shift)*1e3
+
+		sigma = p_dict['sigma']*1e3
+
+		gaussianPop = p_dict['gaussianPop']
+
+
+		S0 = (E_out * E_out.conjugate()).sum(axis=0) / I_in + gaussianPop * gaussian(X, X0, sigma)
+
+	else:
+
+		S0 = (E_out * E_out.conjugate()).sum(axis=0) / I_in
 	
 	Iz = (E_out[2] * E_out[2].conjugate()).real / I_in
 	

@@ -126,7 +126,7 @@ def calculate(detuning_range, E_in=[1, 0, 0], p_dict={}, outputs=None):
     return spectra.get_spectra(detuning_range, E_in, p_dict, outputs)
 
 
-def fit_data(data, p_dict, p_dict_bools, groundPop, E_in=None, p_dict_bounds=None, data_type='S0', fit_algorithm='ML', **kw):
+def fit_data(data, p_dict, p_dict_bools, groundPop, add_gaussian, E_in=None, p_dict_bounds=None, data_type='S0', fit_algorithm='ML', verbose=False, **kw):
     """
     Method to compare and fit experimental data to ElecSus.
 
@@ -177,10 +177,10 @@ def fit_data(data, p_dict, p_dict_bools, groundPop, E_in=None, p_dict_bounds=Non
 
     # Call different fitting routines
     if fit_algorithm in ('ML', 'Marquardt-Levenberg', 'LM', 'leastsq'):
-        print('\nPerfoming Marquardt-Levenberg fitting routine.')
-        optParams, result = ML.ML_fit(data, E_in, p_dict, p_dict_bools, groundPop, p_dict_bounds=p_dict_bounds,
+        # print('\nPerfoming Marquardt-Levenberg fitting routine.')
+        optParams, result = ML.ML_fit(data, E_in, p_dict, p_dict_bools, groundPop, add_gaussian, p_dict_bounds=p_dict_bounds,
                                       data_type=data_type)
-        print('ML Fit completed')
+        # print('ML Fit completed')
     elif fit_algorithm == 'SA':
         print('\nPerforming fitting by simulated annealing.')
         nevaluations = 2 ** (8 + 2 * nparameters)

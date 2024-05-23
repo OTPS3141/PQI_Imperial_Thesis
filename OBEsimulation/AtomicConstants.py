@@ -37,6 +37,10 @@ class Alkalis:
             else:
                 self.coupling_be = self.coupling(self.Jb, self.Fb, self.mb, self.Jj, self.Fj, self.mj)
 
+        if self.number_of_states == 6: # DRAGON
+            self.coupling_be = self.coupling(self.Jb, self.Fb, self.mb, self.Jj, self.Fj, self.mj)
+            self.coupling_sd = self.coupling(self.Jd, self.Fd, self.md, self.Jq, self.Fq, self.mq)
+
     def __repr__(self):
         ground_state = self.ground_state.replace('/', 'q') # use q instead of / for use in file names
         intermediate_state = self.intermediate_state.replace('/', 'q')
@@ -120,6 +124,17 @@ class Alkalis:
                 self.Lb = self.Lg #self.config["states"]["dressing"]["L"]
                 self.Jb = self.Jg #self.config["states"]["dressing"]["J"]
 
+        if self.number_of_states == 6: # ground state mapping with rephasing (DRAGON)
+            self.nb = self.ng 
+            self.Lb = self.Lg 
+            self.Jb = self.Jg
+
+            self.nd = self.config["states"]["dressing"]["n"]
+            self.Ld = self.config["states"]["dressing"]["L"]
+            self.Jd = self.config["states"]["dressing"]["J"]
+
+
+
 
         if self.splitting == False:
             self.Fg = np.array([0])
@@ -146,6 +161,14 @@ class Alkalis:
                 else: # ground state mapping
                     self.Fb = np.array([0])
                     self.mb = np.array([0]) 
+
+            # DRAGON 
+            if self.number_of_states == 6:
+                self.Fb = np.array([0])
+                self.mb = np.array([0]) 
+
+                self.Fd = np.array([0])
+                self.md = np.array([0]) 
 
         else: # hyperfine splitting
             # Ground state
@@ -180,6 +203,14 @@ class Alkalis:
                 else: # ground state mapping
                     self.Fb = np.array([self.config["states"]["storage2"]["F"]])
                     self.mb = np.arange(-max(self.Fb), max(self.Fb)+1)
+
+            # DRAGON
+            if self.number_of_states == 6:
+                self.Fb = np.array([self.config["states"]["storage2"]["F"]])
+                self.mb = np.arange(-max(self.Fb), max(self.Fb)+1)
+
+                self.Fd = np.array([self.config["states"]["dressing"]["F"]])
+                self.md = np.arange(-max(self.Fd), max(self.Fd)+1)
 
     def lookup_atom_constants(self):
         self.ground_state = str(self.ng)+self.momentum_letter(self.Lg)+str(Fraction(self.Jg))
@@ -260,6 +291,27 @@ class Alkalis:
                 [wavelengths[3], reduced_dipoles[3]] = [wavelengths[0], reduced_dipoles[0]]
                 self.reduced_dipoles[3] = reduced_dipoles[3]*au/np.sqrt(2*self.J_array[0]+1) # (g -> j)
                 self.J_array[4] = self.Jg
+
+        elif self.number_of_states == 6: # DRAGON
+            # ground state mapping
+            # mapping field 1 has the same wavelength and dipole as control field (for ORCA)
+            [wavelengths[2], reduced_dipoles[2]] = [wavelengths[1], reduced_dipoles[1]]
+            self.reduced_dipoles[2] = reduced_dipoles[2]*au/np.sqrt(2*self.J_array[1]+1) # (j -> q)
+            self.J_array[3] = self.Jj
+            # mapping field 2 has the same wavelength and dipole as signal field (for ORCA)
+            [wavelengths[3], reduced_dipoles[3]] = [wavelengths[0], reduced_dipoles[0]]
+            self.reduced_dipoles[3] = reduced_dipoles[3]*au/np.sqrt(2*self.J_array[0]+1) # (g -> j)
+            self.J_array[4] = self.Jg
+            # dressing field
+            self.dressing_state = str(self.nd)+self.momentum_letter(self.Ld)+str(Fraction(self.Jd))
+            query = df[
+                        (df['Initial'].str.contains(self.storage_state) & df['Final'].str.contains(self.dressing_state)) |
+                        (df['Final'].str.contains(self.storage_state) & df['Initial'].str.contains(self.dressing_state))
+                    ][['Wavelength (nm)', 'Matrix element (a.u.)']].to_numpy()
+
+            [[wavelengths[4], reduced_dipoles[4]]] = query
+            self.reduced_dipoles[4] = reduced_dipoles[4]*au/np.sqrt(2*self.J_array[4]+1)
+            self.J_array[5] = self.Jd
             
 
         self.wavelengths = wavelengths*1e-9 # convert to m
@@ -274,6 +326,11 @@ class Alkalis:
                 # ground state mapping
                 # bit of a hack - find a better way to do this
                 self.lifetimes[2] = self.lifetimes[0]
+
+        if self.number_of_states == 6:
+            # ground state mapping
+            # bit of a hack - find a better way to do this
+            self.lifetimes[2] = self.lifetimes[0]
         
         self.decay_rates = 1/self.lifetimes
         
@@ -282,6 +339,8 @@ class Alkalis:
         elif self.number_of_states == 5:
             if 'dressing2' not in self.config["states"].keys(): # if not dressing with two states
                 self.decay_rates[3] = 0 # set spin wave decay of ground state to be zero
+        elif self.number_of_states == 6:
+            self.decay_rates[3] = 0 # set spin wave decay of ground state to be zero
 
         self.gammas = self.decay_rates/2   
 
@@ -393,6 +452,9 @@ class Alkalis:
                 else:
                     # ground state mapping
                     self.wb = np.array([0])
+            elif self.number_of_states == 6:
+                self.wb = np.array([0])
+                self.wd = np.array([0])
 
         else:
             df = pd.read_csv(self.filename_hyperfine)
@@ -499,6 +561,33 @@ class Alkalis:
                             self.wb = values[indices]
                     else:
                         self.wb = np.array([0])
+            if self.number_of_states == 6:
+                # ground state mapping
+                Ab = Ag
+                Bb = Bg
+                if len(self.Fb)>1:
+                    H = Ab * self.Hhfs(self.Jb, self.I) + Bb*self.Bbhfs(self.Jb,self.I)
+                    values = eigh(H)[0].real
+                    indices = np.concatenate(([0], np.cumsum(2*self.Fb[:-1]+1))).astype(int)
+                    if Ab < 0:
+                        self.wb = np.flip(values)[indices]
+                    else:
+                        self.wb = values[indices]
+                else:
+                    self.wb = np.array([0])
+
+                Ad = df[df['State'].str.contains(self.dressing_state)]['Hyperfine constant (A)'].to_numpy()[0]*1e6
+                Bd = df[df['State'].str.contains(self.dressing_state)]['Hyperfine constant (B)'].to_numpy()[0]*1e6
+                if len(self.Fd)>1:
+                    H = Ad * self.Hhfs(self.Jd, self.I) + Bd*self.Bbhfs(self.Jd,self.I)
+                    values = eigh(H)[0].real
+                    indices = np.concatenate(([0], np.cumsum(2*self.Fd[:-1]+1))).astype(int)
+                    if Ad < 0:
+                        self.wd = np.flip(values)[indices]
+                    else:
+                        self.wd = values[indices]
+                else:
+                    self.wd = np.array([0])
             
     
     def Wigner6jPrefactorSteck(self, Fdash, J, I):
@@ -542,7 +631,8 @@ class Alkalis:
         # Control could have two polarisations
         # Control must be in rabi frequency (Hz)
         # t must be in seconds
-        E = np.trapz(c*epsilon_0*pow(hbar,2)/2 * pow(Control/self.reduced_dipoles[index], 2), x=t, axis=0) * np.pi * pow(r, 2)
+        # Rabi frequency in simulation defined as half of usual rabi frequency, this is why *2 rather than /2.
+        E = np.trapz(c*epsilon_0*pow(hbar,2)*2 * pow(Control/self.reduced_dipoles[index], 2), x=t, axis=0) * np.pi * pow(r, 2)
         return E
     
 
@@ -557,8 +647,8 @@ class Rb87(Alkalis):
 
         self.config = config
 
-        self.filename = '/home/otps3141/Documents/Dokumente/ETH QE/Master Thesis Imperial/Thesis/Code/OBEsimulation/Rb/Rb1MatrixElements.csv'
-        self.filename_hyperfine =  '/home/otps3141/Documents/Dokumente/ETH QE/Master Thesis Imperial/Thesis/Code/OBEsimulation/Rb/Rb87_hyperfine.csv'
+        self.filename = 'Rb/Rb1MatrixElements.csv'
+        self.filename_hyperfine =  'Rb/Rb87_hyperfine.csv'
 
         super().__init__()
 
@@ -573,8 +663,8 @@ class Rb85(Alkalis):
 
         self.config = config
 
-        self.filename = '/home/otps3141/Documents/Dokumente/ETH QE/Master Thesis Imperial/Thesis/Code/OBEsimulation/Rb/Rb1MatrixElements.csv'
-        self.filename_hyperfine =  '/home/otps3141/Documents/Dokumente/ETH QE/Master Thesis Imperial/Thesis/Code/OBEsimulation/Rb/Rb85_hyperfine.csv'
+        self.filename = 'Rb/Rb1MatrixElements.csv'
+        self.filename_hyperfine =  'Rb/Rb85_hyperfine.csv'
 
         super().__init__()
 

@@ -48,6 +48,8 @@ class solver:
             self._deltaC = np.array([deltas[1], deltas[2]])
         elif self.protocol == 'TORCA_GSM_D1' or self.protocol == 'TORCA_GSM_D2' or self.protocol == 'ORCA_GSM':
             self._deltaC = np.array([deltas[1], deltas[2], deltas[3]]) # control field and two fields to map down to ground state
+        elif self.protocol == 'ORCA_DRAGON':
+            self._deltaC = np.array([deltas[1], deltas[2], deltas[3], deltas[4]]) # control field ,two fields to map down to ground state and rephasing field
         else:
             self._deltaC = deltas[1] # control field detuning, not in natural units
 
@@ -90,7 +92,7 @@ class solver:
             #         else:
             #             self.DbF_inv[:, :, i, j] = 0
 
-        if self.protocol == 'ORCA_GSM':
+        if self.protocol == 'ORCA_GSM' or self.protocol == 'ORCA_DRAGON':
             # Define resonant photon field
             self.ER = np.zeros((self.m, self.n, 2), dtype=complex) #(t, z, polarisation = (L, R))
 
@@ -274,6 +276,13 @@ class solver:
             self.S = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fq), len(self.atom.mq), self.vno), dtype=complex) #(t, z, number of ground states, number of mF states in ground state with largest F, number of storage states, number of mF states in storage state with largest F, number of velocity classes)
             self.S[0, :, ..., :] = self.Sinits
             self.coherences_list = [self.S]
+        if self.protocol == '4levelORCA':
+            self.Einits = interp1d(self.tpoints, self._Einits/np.sqrt(self.gamma), axis=0, fill_value="extrapolate", bounds_error=False) # initial photon condition, in natural units
+            self.Sgs = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fq), len(self.atom.mq), self.vno), dtype=complex) #(t, z, number of ground states, number of mF states in ground state with largest F, number of storage states, number of mF states in storage state with largest F, number of velocity classes)
+            self.Sgb = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fb), len(self.atom.mb), self.vno), dtype=complex) #(t, z, number of ground states, number of mF states in ground state with largest F, number of storage states, number of mF states in storage state with largest F, number of velocity classes)
+            self.Sgs[0, :, ..., :] = self.Sinits[0]
+            self.Sgb[0, :, ..., :] = self.Sinits[1]
+            self.coherences_list = [self.Sgs, self.Sgb]
         elif self.protocol == 'TORCAP':
             self.Einits = interp1d(self.tpoints, self._Einits/np.sqrt(self.gamma), axis=0, fill_value="extrapolate", bounds_error=False) # initial photon condition, in natural units
             self.Pge = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fj), len(self.atom.mj), self.vno), dtype=complex)
@@ -350,7 +359,7 @@ class solver:
             self.Sgs2[0, :, ..., :] = self.Sinits[1]
             self.coherences_list = [self.Pge, self.Pge2, self.Sgs, self.Sgs2]
         elif self.protocol == 'ORCA_GSM':
-            self.Einits = interp1d(self.tpoints, self._Einits[0]/np.sqrt(self.gamma), axis=0, fill_value="extrapolate", bounds_error=False) # initial photon condition, in natural units
+            self.Einits = interp1d(self.tpoints, self._Einits/np.sqrt(self.gamma), axis=0, fill_value="extrapolate", bounds_error=False) # initial photon condition, in natural units
             self.Pge = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fj), len(self.atom.mj), self.vno), dtype=complex)
             self.Pge2 = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fj), len(self.atom.mj), self.vno), dtype=complex)
             self.Sgs = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fq), len(self.atom.mq), self.vno), dtype=complex) #(t, z, number of ground states, number of mF states in ground state with largest F, number of storage states, number of mF states in storage state with largest F, number of velocity classes)
@@ -358,6 +367,17 @@ class solver:
             self.Sgs[0] = self.Sinits[0] 
             self.Sgb[0] = self.Sinits[1]
             self.coherences_list = [self.Pge, self.Pge2, self.Sgs, self.Sgb]
+        elif self.protocol == 'ORCA_DRAGON':
+            self.Einits = interp1d(self.tpoints, self._Einits/np.sqrt(self.gamma), axis=0, fill_value="extrapolate", bounds_error=False) # initial photon condition, in natural units
+            self.Pge = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fj), len(self.atom.mj), self.vno), dtype=complex)
+            self.Pge2 = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fj), len(self.atom.mj), self.vno), dtype=complex)
+            self.Sgs = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fq), len(self.atom.mq), self.vno), dtype=complex) #(t, z, number of ground states, number of mF states in ground state with largest F, number of storage states, number of mF states in storage state with largest F, number of velocity classes)
+            self.Sgb = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fb), len(self.atom.mb), self.vno), dtype=complex)
+            self.Sgd = np.zeros((self.m, self.n, len(self.atom.Fg), len(self.atom.mg), len(self.atom.Fd), len(self.atom.md), self.vno), dtype=complex)
+            self.Sgs[0] = self.Sinits[0] 
+            self.Sgb[0] = self.Sinits[1]
+            self.Sgd[0] = self.Sinits[2]
+            self.coherences_list = [self.Pge, self.Pge2, self.Sgs, self.Sgb, self.Sgd]
         # elif self.protocol == '4levelORCA':
         #     self.Sgs = np.zeros((self.m, self.n, len(self.Fg), len(self.mg), len(self.Fq), len(self.mq), self.vno), dtype=complex) #(t, z, number of ground states, number of mF states in ground state with largest F, number of storage states, number of mF states in storage state with largest F, number of velocity classes)
         #     self.Sgb = np.zeros((self.m, self.n, len(self.Fg), len(self.mg), len(self.Fb), len(self.mb), self.vno), dtype=complex)
@@ -403,6 +423,12 @@ class solver:
             self.DELTAC = deltaC[0] - ( (self.wq[None, :] - self.wj[:, None]) )[:, :, None] + ((self.kcontrol * self.vs)/self.gamma)[None, None, :] #(j, q, v)
             self.DELTAC2 = deltaC[1] - ( (self.wq[None, :] - self.wj[:, None]) )[:, :, None] + ((self.kcontrol2 * self.vs)/self.gamma)[None, None, :] #(j, q, v)
             self.DELTAC3 = deltaC[2] - ( (self.wj[None, :] - self.wb[:, None]) )[:, :, None] + ((self.kcontrol3 * self.vs)/self.gamma)[None, None, :] #(j, q, v)
+        elif self.protocol == 'ORCA_DRAGON':
+            self.DELTAS = deltaS - ( (self.wj[None, :] - self.wg[:, None]) )[:, :, None] + ((self.ksignal * self.vs)/self.gamma)[None, None, :] #(g, j, v)
+            self.DELTAC = deltaC[0] - ( (self.wq[None, :] - self.wj[:, None]) )[:, :, None] + ((self.kcontrol * self.vs)/self.gamma)[None, None, :] #(j, q, v)
+            self.DELTAC2 = deltaC[1] - ( (self.wq[None, :] - self.wj[:, None]) )[:, :, None] + ((self.kcontrol2 * self.vs)/self.gamma)[None, None, :] #(j, q, v)
+            self.DELTAC3 = deltaC[2] - ( (self.wj[None, :] - self.wb[:, None]) )[:, :, None] + ((self.kcontrol3 * self.vs)/self.gamma)[None, None, :] #(j, q, v)
+            self.DELTAC4 = deltaC[3] - ( (self.wd[None, :] - self.wq[:, None]) )[:, :, None] + ((self.kcontrol4 * self.vs)/self.gamma)[None, None, :] #(d, q, v)
         elif self.protocol == 'RamanFWM' or  self.protocol == 'RamanFWM-Magic' or self.protocol == 'EITFWM':
             self.DELTAS = deltaS - ( (self.wj[None, :] - self.wg[:, None]) )[:, :, None] + ((self.ksignal * self.vs)/self.gamma)[None, None, :]
             self.DELTAC = deltaC - ( (self.wq[None, :] - self.wj[:, None]) )[:, :, None] + ((self.kcontrol * self.vs)/self.gamma)[None, None, :]
@@ -440,6 +466,13 @@ class solver:
             #self.DELTAGS2 = (self.DELTAC2[None, :, :, :] + self.DELTAC3[:, :, None, :])[:, 0, ...] #(b, q, v)
             self.DELTAGJ = (self.DELTAGS[:, None, :, :] - self.DELTAC2[None, :, :, :])[:, :, 0, ...] #(g, j, v)
             self.DELTAGB = (self.DELTAGJ[:, :, None, :] - np.transpose(self.DELTAC3, (1, 0, 2))[None, :, :, :])[:, 0, :, ...] #(g, b, v)
+            #self.DELTAGB = (self.DELTAGS[:, :, None, :] - np.transpose(self.DELTAGS2, (1, 0, 2))[None, :, :, :])[:, 0, :, ...] #(g, b, v)
+        elif self.protocol == 'ORCA_DRAGON':
+            self.DELTAGS = (self.DELTAS[..., None, :] + self.DELTAC[None, :, :, :])[:, 0, ...] #(g, q, v)
+            #self.DELTAGS2 = (self.DELTAC2[None, :, :, :] + self.DELTAC3[:, :, None, :])[:, 0, ...] #(b, q, v)
+            self.DELTAGJ = (self.DELTAGS[:, None, :, :] - self.DELTAC2[None, :, :, :])[:, :, 0, ...] #(g, j, v)
+            self.DELTAGB = (self.DELTAGJ[:, :, None, :] - np.transpose(self.DELTAC3, (1, 0, 2))[None, :, :, :])[:, 0, :, ...] #(g, b, v)
+            self.DELTAGD = (self.DELTAGS[:, :, None, :] + self.DELTAC4[:, None, :, :])[:, 0, ...] #(g, d, v)
             #self.DELTAGB = (self.DELTAGS[:, :, None, :] - np.transpose(self.DELTAGS2, (1, 0, 2))[None, :, :, :])[:, 0, :, ...] #(g, b, v)
         else:
             self.DELTA2 = (self.DELTAS[..., None, :] - self.DELTAC[None, :, :, :])[:, 0, ...]
@@ -507,7 +540,7 @@ class solver:
             self.gammaBNU = self.gammaB/self.gamma
             self.dsqrtQ = self.atom.coupling_ge
             self.OmegaQ = self.atom.coupling_es
-            self.OmegaQ2 = self.atom.coupling_sd
+            self.OmegaQ2 = self.atom.coupling_sb
             self.kcontrol = self.atom.angular_frequencies[1]/self.c
             self.ksignal = self.atom.angular_frequencies[0]/self.c
             self.kcontrol2 = self.atom.angular_frequencies[2]/self.c
@@ -536,6 +569,22 @@ class solver:
             self.kcontrol2 = self.atom.angular_frequencies[2]/self.c
             self.kcontrol3 = self.atom.angular_frequencies[3]/self.c
             self.wb = 2*np.pi*self.atom.wb/self.gamma
+        elif self.protocol == 'ORCA_DRAGON':
+            self.gammaB = self.atom.gammas[3]
+            self.gammaBNU = self.gammaB/self.gamma
+            self.gammaD = self.atom.gammas[4]
+            self.gammaDNU = self.gammaD/self.gamma
+            self.dsqrtQ = self.atom.coupling_ge # used for E and ER
+            self.OmegaQ = self.atom.coupling_es # for control field and mapping field 1
+            self.OmegaM2Q = self.atom.coupling_be # for mapping field 2
+            self.OmegaDQ = self.atom.coupling_sd # form rephasing field
+            self.ksignal = self.atom.angular_frequencies[0]/self.c
+            self.kcontrol = self.atom.angular_frequencies[1]/self.c
+            self.kcontrol2 = self.atom.angular_frequencies[2]/self.c
+            self.kcontrol3 = self.atom.angular_frequencies[3]/self.c
+            self.wb = 2*np.pi*self.atom.wb/self.gamma
+            self.kcontrol4 = self.atom.angular_frequencies[4]/self.c
+            self.wd = 2*np.pi*self.atom.wd/self.gamma
             
 
         # photon couplings
@@ -576,6 +625,9 @@ class solver:
             self.detunings2()
         elif field==2:
             self.DELTAC3 -= ((2*self.kcontrol3 * self.vs)/self.gamma)[None, None, :]
+            self.detunings2()
+        elif field==3:
+            self.DELTAC4 -= ((2*self.kcontrol4 * self.vs)/self.gamma)[None, None, :]
             self.detunings2()
 
         Control3d_array = []
@@ -742,7 +794,7 @@ class solver:
             p[0] =  self.Einits(ti)
             Ei = self.chebyshev_solver(p)
             return Ei
-        elif self.protocol == 'ORCA' or self.protocol == 'Raman':
+        elif self.protocol == 'ORCA' or self.protocol == '4levelORCA' or self.protocol == 'Raman':
             Si = coherences
             p = +1j*np.einsum('zghjkvp, zghjkv -> zp', 
                           np.einsum('zghjkvp, gh -> zghjkvp', self.dsqrtQ, np.sqrt(self.pop), optimize=opt), 
@@ -772,7 +824,7 @@ class solver:
             p[0] =  self.Einits(ti)
             Ei = self.chebyshev_solver(p)
             return Ei
-        elif self.protocol == 'ORCA_GSM':
+        elif self.protocol == 'ORCA_GSM' or self.protocol == 'ORCA_DRAGON':
             Pge1, Pge2 = coherences
             p = - np.einsum('zghjkvp, zghjkv -> zp', np.einsum('zghjkvp, gh -> zghjkvp', self.dsqrtQ, np.sqrt(self.pop), optimize=opt), Pge1)
             p[0] =  self.Einits(ti)
@@ -929,6 +981,31 @@ class solver:
                 self.KE[:] = 0  #empty K
                 self.KS[:] = 0
 
+            
+        elif self.protocol == '4levelORCA':
+            self.KE = np.zeros((len(self.steps), *self.E[0].shape) , dtype=complex) #to hold intermediate values
+            self.KSgs = np.zeros((len(self.steps), *self.Sgs[0].shape) , dtype=complex) #to hold intermediate values
+            self.KSgb = np.zeros((len(self.steps), *self.Sgb[0].shape) , dtype=complex) #to hold intermediate values
+
+            self.E[0] = self.calc_ei(0, Control[0], (self.Sgs[0]))
+            for mi in range(1, self.m):
+                for ki in range(len(self.steps)):
+                    dt = self.tstep*self.steps[ki]
+                    ti = self.tpoints[mi-1] + dt
+                    Sgsi = self.Sgs[mi-1] + self.tstep*np.sum(self.A[ki, :, None, None, None, None, None, None] * self.KSgs, axis=0)
+                    Sgbi = self.Sgb[mi-1] + self.tstep*np.sum(self.A[ki, :, None, None, None, None, None, None] * self.KSgb, axis=0)
+                    self.KE[ki] = self.calc_ei(ti, Control[0], (Sgsi))
+                    self.KSgs[ki], self.KSgb[ki] = ( self.Sderivative(ti, ( Sgsi, Sgbi, self.KE[ki]), Control) )
+                
+                self.Sgs[mi] = ( self.Sgs[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgs, axis=0))
+                self.Sgb[mi] = ( self.Sgb[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgb, axis=0))
+                
+                self.E[mi] = self.calc_ei(ti, Control[0], (self.Sgs[mi]))
+                
+                self.KE[:] = 0  #empty K
+                self.KSgs[:] = 0
+                self.KSgb[:] = 0
+
         elif self.protocol == 'Raman_test':
             self.KE = np.zeros((len(self.steps)+1, *self.E[0].shape) , dtype=complex) #to hold intermediate values
             self.KS = np.zeros((len(self.steps), *self.S[0].shape) , dtype=complex) #to hold intermediate values
@@ -949,7 +1026,6 @@ class solver:
                 self.KE[:] = 0  #empty K
                 self.KS[:] = 0
 
-            
         elif self.protocol == 'TORCAP':
             self.KE = np.zeros((len(self.steps), *self.E[0].shape) , dtype=complex) #to hold intermediate values
             self.KPge = np.zeros((len(self.steps), *self.Pge[0].shape) , dtype=complex) #to hold intermediate values
@@ -985,8 +1061,7 @@ class solver:
                 self.KYee[:] = 0
                 self.KMgg[:] = 0
                 self.KS[:] = 0
-            
-            
+
         elif self.protocol == '4levelTORCAP':
             self.KE = np.zeros((len(self.steps), *self.E[0].shape) , dtype=complex) #to hold intermediate values
             self.KPge = np.zeros((len(self.steps), *self.Pge[0].shape) , dtype=complex) #to hold intermediate values
@@ -1029,7 +1104,6 @@ class solver:
                 self.KMgg[:] = 0
                 self.KSgs[:] = 0
                 self.KSgb[:] = 0
-            
             
         elif self.protocol == 'TORCAP_2dressing_states':
             self.KE = np.zeros((len(self.steps), *self.E[0].shape) , dtype=complex) #to hold intermediate values
@@ -1132,6 +1206,60 @@ class solver:
                 self.KSgs[:] = 0
                 self.KSgb[:] = 0
 
+        elif self.protocol == 'ORCA_DRAGON':
+            # self.KE[mi-1] to work out adiabatic, then workout E? Is this the correct order
+            self.KE = np.zeros((len(self.steps), *self.E[0].shape) , dtype=complex) #to hold intermediate values
+            self.KER = np.zeros((len(self.steps), *self.ER[0].shape) , dtype=complex) #to hold intermediate values
+            self.KPge = np.zeros((len(self.steps)+1, *self.Pge[0].shape) , dtype=complex) #to hold intermediate values
+            self.KPge2 = np.zeros((len(self.steps), *self.Pge2[0].shape) , dtype=complex) #to hold intermediate values
+            self.KSgs = np.zeros((len(self.steps), *self.Sgs[0].shape) , dtype=complex) #to hold intermediate values
+            self.KSgb = np.zeros((len(self.steps), *self.Sgb[0].shape) , dtype=complex) #to hold intermediate values
+            self.KSgd = np.zeros((len(self.steps), *self.Sgd[0].shape) , dtype=complex) #to hold intermediate values
+
+            self.E[0], self.ER[0] = self.calc_ei(0, Control, (self.Pge[0], self.Pge2[0]))
+            for mi in range(1, self.m):
+                self.KPge[0] = self.Pge[mi-1]
+                for ki in range(len(self.steps)):
+                    dt = self.tstep*self.steps[ki]
+                    ti = self.tpoints[mi-1] + dt
+                    Sgsi = self.Sgs[mi-1] + self.tstep * np.sum(self.A[ki, :, None, None, None, None, None, None] * self.KSgs, axis=0)
+                    Sgbi = self.Sgb[mi-1] + self.tstep * np.sum(self.A[ki, :, None, None, None, None, None, None] * self.KSgb, axis=0)
+                    Sgdi = self.Sgd[mi-1] + self.tstep * np.sum(self.A[ki, :, None, None, None, None, None, None] * self.KSgd, axis=0)
+                    Pge2i = self.Pge2[mi-1] + self.tstep * np.sum(self.A[ki, :, None, None, None, None, None, None] * self.KPge2, axis=0)
+
+                    self.KE[ki], self.KER[ki] = self.calc_ei(ti, Control, (self.KPge[ki], Pge2i))
+                    self.KPge[ki+1] = self.adiabaticP(ti, (Sgsi, self.KE[ki]), Control)
+                    self.KPge2[ki] = self.Pderivative(ti, (Pge2i, Sgsi, Sgbi, self.KER[ki]), Control)
+                    self.KSgs[ki], self.KSgb[ki], self.KSgd[ki] = ( self.Sderivative(ti, (self.KPge[ki+1], Pge2i, Sgsi, Sgbi, Sgdi), Control) )
+                    
+                    #self.KE[ki], self.KER[ki] = self.calc_ei(ti, Control, (self.Pge[mi-1], Pge2i))
+
+                    #self.KPge2[ki] = self.Pderivative(ti, (Pge2i, Sgsi, Sgbi, self.KER[ki]), Control)
+                    #self.KSgs[ki], self.KSgb[ki] = ( self.Sderivative(ti, (self.Pge[mi-1], Pge2i, Sgsi, Sgbi), Control) )
+                    
+
+                self.Sgs[mi] = ( self.Sgs[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgs, axis=0))
+                self.Sgb[mi] = ( self.Sgb[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgb, axis=0))
+                self.Sgd[mi] = ( self.Sgd[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgd, axis=0))
+                self.Pge2[mi] = ( self.Pge2[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KPge2, axis=0))
+                self.Pge[mi] = self.adiabaticP(ti, (self.Sgs[mi], self.E[mi-1]), Control)
+                self.E[mi], self.ER[mi] = self.calc_ei(ti, Control, (self.Pge[mi], self.Pge2[mi]))
+
+                #self.Pge[mi] = self.adiabaticP(ti, (self.Sgs[mi-1], self.E[mi-1]), Control)
+                #self.Sgs[mi] = ( self.Sgs[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgs, axis=0))
+                #self.Sgb[mi] = ( self.Sgb[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KSgb, axis=0))
+                #self.Pge2[mi] = ( self.Pge2[mi-1] + self.tstep * np.sum(self.b[:, None, None, None, None, None, None] * self.KPge2, axis=0))
+                
+                #self.E[mi], self.ER[mi] = self.calc_ei(ti, Control, (self.Pge[mi], self.Pge2[mi]))
+                
+                self.KE[:] = 0  #empty K
+                self.KER[:] = 0
+                self.KPge[:] = 0
+                self.KPge2[:] = 0
+                self.KSgs[:] = 0
+                self.KSgb[:] = 0
+                self.KSgd[:] = 0
+
             
 
         #elif self.protocol == '4levelORCA':
@@ -1208,7 +1336,7 @@ class solver:
                    - np.einsum('zjkbxv, zghbxv -> zghjkv', np.conj(Y), np.einsum('zghbxvp, zp -> zghbxv', np.einsum('zghbxvp, gh -> zghbxvp', self.dsqrtQ, np.sqrt(self.pop), optimize=opt), EF, optimize=opt))
                    + np.einsum('zghasv, zasjkv -> zghjkv', M, np.einsum('zasjkvp, zp -> zasjkv', np.einsum('zasjkvp, as -> zasjkvp', self.dsqrtQ, np.sqrt(self.pop), optimize=opt), EF, optimize=opt))
             )
-        elif self.protocol == 'ORCA_GSM':
+        elif self.protocol == 'ORCA_GSM' or self.protocol == 'ORCA_DRAGON':
             P, Sgs, Sgb, ER = coherences
             #Control0 = Control[0]
             M1 = Control[1]
@@ -1403,7 +1531,7 @@ class solver:
                         )
             
             return Pge, Pes, Peb, Peb2
-        elif self.protocol == 'ORCA_GSM':
+        elif self.protocol == 'ORCA_GSM' or self.protocol == 'ORCA_DRAGON':
             Sgs, E = coherences
             Control0 = Control[0]
             #M1 = Control[1]
@@ -1609,6 +1737,43 @@ class solver:
                                             )
                         )
             return dSgs, dSgb
+        elif self.protocol == '4levelORCA':
+            #(g, mg, j, mj, q, mq, v, z, Q)
+            Sgs, Sgb, E = coherences
+            Control1 = Control[0]
+            Control2 = Control[1]
+            Control_zp1 = Control1(ti, self.zCheby)
+            Control_zp2 = Control2(ti, self.zCheby)
+
+            dSgs = (
+                    np.einsum('gqv,zghqwv -> zghqwv', 
+                                        -(self.gammaSNU + 1j*self.DELTAGS)
+                                        , Sgs, optimize=opt)
+
+                    - np.einsum('jkqwz, ghjkvz -> zghqwv', np.einsum('jkqwp,zp -> jkqwz', self.OmegaQ,  np.conj(Control_zp1), optimize=opt), 
+                                np.einsum('ghjkvz, gjv -> ghjkvz', np.einsum('jkqwz, zghqwv -> ghjkvz' ,np.einsum('jkqwp,zp -> jkqwz', self.OmegaQ,  Control_zp1, optimize=opt), Sgs, optimize=opt),
+                                        (1/(1 + 1j*self.DELTAS)), optimize=opt), optimize=opt)
+
+                    - 1j* np.einsum('zjkqw, zghjkv -> zghqwv', np.einsum('jkqwp,zp -> zjkqw', self.OmegaQ,  np.conj(Control_zp1), optimize=opt), 
+                                    np.einsum('zghjkv, gjv -> zghjkv' , 
+                                    np.einsum('zghjkvp, zp -> zghjkv', 
+                                                np.einsum('zghjkvp, gh -> zghjkvp', self.dsqrtQ, np.sqrt(self.pop), optimize=opt), E), (1/(1 + 1j*self.DELTAS)), optimize=opt))
+
+                    - 1j* np.einsum('qwbxz,zghbxv -> zghqwv', 
+                                            np.einsum('qwbxp,zp -> qwbxz', self.OmegaQ2,  np.conj(Control_zp2)), Sgb, optimize=opt)
+                                            
+                                            )
+
+            dSgb = np.einsum('ghbxvz->zghbxv', (
+                                            np.einsum('gbv,zghbxv->ghbxvz', 
+                                                                -(self.gammaBNU + 1j*self.DELTAGB)
+                                                                , Sgb, optimize=opt)
+
+                                            - 1j* np.einsum('qwbxz,zghqwv->ghbxvz', 
+                                            np.einsum('qwbxp,zp->qwbxz', self.OmegaQ2,  Control_zp2), Sgs, optimize=opt)
+                                            )
+                        )
+            return dSgs, dSgb
         elif self.protocol == 'TORCAP_2dressing_states':
             #(g, mg, j, mj, q, mq, v, z, Q)
             Pge, Pes, Peb, Peb2, Sgs, Sgb, Sgb2, E = coherences
@@ -1680,6 +1845,38 @@ class solver:
                   -1j* np.einsum('zjkbx, zghjkv -> zghbxv', np.einsum('bxjkp, zp -> zjkbx', self.OmegaM2Q, np.conj(M2_zp), optimize=opt), Pge2, optimize=opt)
             )
             return dSgs, dSgb
+        
+        elif self.protocol == 'ORCA_DRAGON':
+            # (g, mg, j, mj, q, mq, v, z, Q)
+            Pge1, Pge2, Sgs, Sgb, Sgd = coherences
+            Control0 = Control[0]
+            M1 = Control[1]
+            M2 = Control[2]
+            Control2 = Control[3]
+            Control_zp0 = Control0(ti, self.zCheby)
+            M1_zp = M1(ti, self.zCheby)
+            M2_zp = M2(ti, self.zCheby)
+            Control_zp2 = Control2(ti, self.zCheby)
+
+            dSgs = ( np.einsum('gqv, zghqwv -> zghqwv', -(self.gammaSNU + 1j*self.DELTAGS), Sgs, optimize=opt)
+                  -1j* np.einsum('zjkqw, zghjkv -> zghqwv', np.einsum('jkqwp, zp -> zjkqw', self.OmegaQ, np.conj(Control_zp0), optimize=opt), Pge1, optimize=opt)
+                  -1j* np.einsum('zjkqw, zghjkv -> zghqwv', np.einsum('jkqwp, zp -> zjkqw', self.OmegaQ, np.conj(M1_zp), optimize=opt), Pge2, optimize=opt)
+                  - 1j* np.einsum('qwbxz,zghbxv -> zghqwv', 
+                                            np.einsum('qwbxp,zp -> qwbxz', self.OmegaDQ,  np.conj(Control_zp2)), Sgd, optimize=opt)
+            )
+            dSgb = ( np.einsum('gbv, zghbxv -> zghbxv', -(self.gammaBNU + 1j*self.DELTAGB), Sgb, optimize=opt)
+                  -1j* np.einsum('zjkbx, zghjkv -> zghbxv', np.einsum('bxjkp, zp -> zjkbx', self.OmegaM2Q, np.conj(M2_zp), optimize=opt), Pge2, optimize=opt)
+            )
+            dSgd = np.einsum('ghbxvz->zghbxv', (
+                                            np.einsum('gbv,zghbxv->ghbxvz', 
+                                                                -(self.gammaDNU + 1j*self.DELTAGD)
+                                                                , Sgd, optimize=opt)
+
+                                            - 1j* np.einsum('qwbxz,zghqwv->ghbxvz', 
+                                            np.einsum('qwbxp,zp->qwbxz', self.OmegaDQ,  Control_zp2), Sgs, optimize=opt)
+                                            )
+                        )
+            return dSgs, dSgb, dSgd
         
         elif self.protocol == 'TORCA_GSM_D1' or self.protocol == 'TORCA_GSM_D2':
             P2, S, S2, E = coherences
