@@ -59,10 +59,13 @@ p_dict_defaults = {	'Elem':'Rb', 'Dline':'D2',
 							'Btheta':0, 'Bphi':0,
 							'Constrain':True, 'DoppTemp':20.,
 							'rb85frac':72.17, 'K40frac':0.01, 'K41frac':6.73,
-							'BoltzmannFactor':True, 'popShift87':0, 'popShift85':0, 'sigma': 0.5, 'X0_shift': 0.3}
+							'BoltzmannFactor':True, 'popShift87':0, 'popShift85':0, 'popShiftCs':0, 'sigma': 0.5, 'X0_shift': 0.3}
 
-def FreqStren(groundLevels,excitedLevels,groundDim,
-			  excitedDim,groundPop,Dline, p_dict, Rb_isotope,hand,BoltzmannFactor=True,T=293.16):
+
+
+
+def FreqStren(groundLevels, excitedLevels, groundDim,
+			  excitedDim, groundPop, Dline, p_dict, Rb_isotope, Elem, hand, BoltzmannFactor=True, T=293.16):
 	""" 
 	Calculate transition frequencies and strengths by taking dot
 	products of relevant parts of the ground / excited state eigenvectors 
@@ -97,40 +100,51 @@ def FreqStren(groundLevels,excitedLevels,groundDim,
 	gF1 = 3
 	gF2 = 5
 	gF3 = 7
+	gF4 = 9
 
 	
 
 	# shiftConst = popShift
 	popShift87 = p_dict['popShift87']
 	popShift85 = p_dict['popShift85']
+	popShiftCs = p_dict['popShiftCs']
+
+	groundPopArray = np.ones(groundDim)
  
 	if groundPop == 0:
+		if Elem == 'Rb':
+			if Rb_isotope == '85': 
+				# a = 1/10
+				# b = 1/16
+				# groundPopArray = np.zeros(groundDim)
+				# groundPopArray[0:gF2-1] = a
+				# groundPopArray[gF2:] = b
+	
+				groundPopArray = np.ones(groundDim)
 
-		if Rb_isotope == '85': 
-			# a = 1/10
-			# b = 1/16
-			# groundPopArray = np.zeros(groundDim)
-			# groundPopArray[0:gF2-1] = a
-			# groundPopArray[gF2:] = b
-   
+				
+				groundPopArray[0:gF2] = groundPopArray[0:gF2]+popShift85/gF2 # Address F=2 population
+				groundPopArray[gF2:] = groundPopArray[gF2:]-popShift85/gF3  # Address F=3 population
+				
+			if Rb_isotope == '87':
+				# a = 1/6
+				# b = 1/10
+				# groundPopArray = np.zeros(groundDim)
+				# groundPopArray[0:gF1-1] = a
+				# groundPopArray[gF1:] = b
+	
+				groundPopArray = np.ones(groundDim)
+
+				
+				groundPopArray[0:gF1] = groundPopArray[0:gF1]+popShift87/gF1  # Address F=1 population
+				groundPopArray[gF1:] = groundPopArray[gF1:]-popShift87/gF2  # Address F=2 population
+
+		if Elem == 'Cs':
+
 			groundPopArray = np.ones(groundDim)
 
-			
-			groundPopArray[0:gF2] = groundPopArray[0:gF2]+popShift85/gF2 # Address F=2 population
-			groundPopArray[gF2:] = groundPopArray[gF2:]-popShift85/gF3  # Address F=3 population
-			
-		if Rb_isotope == '87':
-			# a = 1/6
-			# b = 1/10
-			# groundPopArray = np.zeros(groundDim)
-			# groundPopArray[0:gF1-1] = a
-			# groundPopArray[gF1:] = b
-   
-			groundPopArray = np.ones(groundDim)
-
-			
-			groundPopArray[0:gF1] = groundPopArray[0:gF1]+popShift87/gF1  # Address F=1 population
-			groundPopArray[gF1:] = groundPopArray[gF1:]-popShift87/gF2  # Address F=2 population
+			groundPopArray[0:gF3] = groundPopArray[0:gF3]+popShiftCs/gF3  # Address F=3 population
+			groundPopArray[gF3:] = groundPopArray[gF3:]-popShiftCs/gF4  # Address F=4 population
 
 
 
@@ -192,7 +206,6 @@ def FreqStren(groundLevels,excitedLevels,groundDim,
 			cleb = dot(groundLevels[gg][1:],excitedLevels[ee][bottom:top]).real
 			# Squared for total probability
 			cleb2 = cleb*cleb
-			
 			cleb2 = cleb2*groundPopArray[gg]
 			# print(f'CG coeff. for GS {ee} and ES {ee}', cleb2)
 			if cleb2 > 0.0005: #If negligable don't calculate.
@@ -215,7 +228,7 @@ def FreqStren(groundLevels,excitedLevels,groundDim,
 	#print 'No transitions (ElecSus): ',transNo
 	return transitionFrequency, transitionStrength, transNo
 
-def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,Rb_isotope,
+def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,Rb_isotope, Elem,
 		ltransno,lenergy,lstrength,
 		rtransno,renergy,rstrength,
 		ztransno,zenergy,zstrength):
@@ -243,11 +256,15 @@ def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,Rb_isotope,
 	ldisp = zeros(xpts)
 	for line in range(ltransno+1):
 		xc = lenergy[line]
-		if Rb_isotope == '87':
-			if line <= 3:
-				# Rb87 F=1 transitions
-				lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
-				ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		if Elem == 'Rb':
+			if Rb_isotope == '87':
+				if line <= 3:
+					# Rb87 F=1 transitions
+					lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+					ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+				else:
+					lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+					ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
 			else:
 				lab += lstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
 				ldisp += lstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
@@ -258,11 +275,15 @@ def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,Rb_isotope,
 	rdisp = zeros(xpts)
 	for line in range(rtransno+1):
 		xc = renergy[line]
-		if Rb_isotope == '87':
-			if line <= 3:
-				# Rb87 F=1 transitions
-				rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
-				rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+		if Elem == 'Rb':
+			if Rb_isotope == '87':
+				if line <= 3:
+					# Rb87 F=1 transitions
+					rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+					rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+				else:
+					rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+					rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
 			else:
 				rab += rstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
 				rdisp += rstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
@@ -274,12 +295,16 @@ def add_voigt(d,DoppTemp,atomMass,wavenumber,gamma,voigtwidth,Rb_isotope,
 	zdisp = zeros(xpts)
 	for line in range(ztransno+1):
 		xc = zenergy[line]
-		if Rb_isotope == '87':
-			if line <= 3:
-				# Rb87 F=1 transitions
-				zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6) 
-				zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
-			else:
+		if Elem == 'Rb':
+			if Rb_isotope == '87':
+				if line <= 3:
+					# Rb87 F=1 transitions
+					zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6) 
+					zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+				else:
+					zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
+					zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
+			else: 
 				zab += zstrength[line]*f_ab(2.0*pi*(d-xc)*1.0e6)
 				zdisp += zstrength[line]*f_disp(2.0*pi*(d-xc)*1.0e6)
 		else:
@@ -406,21 +431,21 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 													Rb85_ES.groundManifold,
 													Rb85_ES.excitedManifold,
 													Rb85_ES.ds,Rb85_ES.dp, groundPop,
-													Dline, p_dict, Rb_isotope,'Left',BoltzmannFactor,T+273.16)		  
+													Dline, p_dict, Rb_isotope, Elem,'Left',BoltzmannFactor,T+273.16)		  
 
 			# Rb-85 allowed transitions for light driving sigma plus
 			renergy85, rstrength85, rtransno85 = FreqStren(
 													Rb85_ES.groundManifold,
 													Rb85_ES.excitedManifold,
 													Rb85_ES.ds,Rb85_ES.dp, groundPop,
-													Dline, p_dict, Rb_isotope,'Right',BoltzmannFactor,T+273.16)
+													Dline, p_dict, Rb_isotope, Elem,'Right',BoltzmannFactor,T+273.16)
 			
 			# Rb-85 allowed transitions for light driving pi
 			zenergy85, zstrength85, ztransno85 = FreqStren(
 													Rb85_ES.groundManifold,
 													Rb85_ES.excitedManifold,
 													Rb85_ES.ds,Rb85_ES.dp, groundPop,
-													Dline, p_dict, Rb_isotope,'Z',BoltzmannFactor,T+273.16)
+													Dline, p_dict, Rb_isotope, Elem,'Z',BoltzmannFactor,T+273.16)
 			# print('Rb-85 transitions:', ztransno85)
 
 		if rb87frac!=0.0:
@@ -434,21 +459,21 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 													Rb87_ES.groundManifold,
 													Rb87_ES.excitedManifold,
 													Rb87_ES.ds,Rb87_ES.dp, groundPop,
-													Dline, p_dict, Rb_isotope,'Left',BoltzmannFactor,T+273.16)
+													Dline, p_dict, Rb_isotope, Elem,'Left',BoltzmannFactor,T+273.16)
 
 			# Rb-87 allowed transitions for light driving sigma plus
 			renergy87, rstrength87, rtransno87 = FreqStren(
 													Rb87_ES.groundManifold,
 													Rb87_ES.excitedManifold,
 													Rb87_ES.ds,Rb87_ES.dp, groundPop,
-													Dline, p_dict, Rb_isotope,'Right',BoltzmannFactor,T+273.16)
+													Dline, p_dict, Rb_isotope, Elem,'Right',BoltzmannFactor,T+273.16)
 
 			# Rb-87 allowed transitions for light driving sigma plus
 			zenergy87, zstrength87, ztransno87 = FreqStren(
 													Rb87_ES.groundManifold,
 													Rb87_ES.excitedManifold,
 													Rb87_ES.ds,Rb87_ES.dp, groundPop,
-													Dline, p_dict, Rb_isotope,'Z',BoltzmannFactor,T+273.16)
+													Dline, p_dict, Rb_isotope, Elem,'Z',BoltzmannFactor,T+273.16)
 			# print('Rb-87 transitions:', ztransno87)										
 			
 													
@@ -468,20 +493,24 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 
 	# Caesium energy levels
 	elif Elem=='Cs':
+		Rb_isotope = '87'
 		CsAtom = AC.Cs
 		Cs_ES = ES.Hamiltonian('Cs',Dline,1.0,Bfield)
 
 		lenergy, lstrength, ltransno = FreqStren(Cs_ES.groundManifold,
 												 Cs_ES.excitedManifold,
-												 Cs_ES.ds,Cs_ES.dp,Dline,
+												 Cs_ES.ds,Cs_ES.dp, groundPop,
+													Dline, p_dict, Rb_isotope, Elem,
 												 'Left',BoltzmannFactor,T+273.16)
 		renergy, rstrength, rtransno = FreqStren(Cs_ES.groundManifold,
 												 Cs_ES.excitedManifold,
-												 Cs_ES.ds,Cs_ES.dp,Dline,
+												 Cs_ES.ds,Cs_ES.dp, groundPop,
+													Dline, p_dict, Rb_isotope, Elem,
 												 'Right',BoltzmannFactor,T+273.16)		
 		zenergy, zstrength, ztransno = FreqStren(Cs_ES.groundManifold,
 												 Cs_ES.excitedManifold,
-												 Cs_ES.ds,Cs_ES.dp,Dline,
+												 Cs_ES.ds,Cs_ES.dp, groundPop,
+													Dline, p_dict, Rb_isotope, Elem,
 												 'Z',BoltzmannFactor,T+273.16)
 
 		if Dline=='D1':
@@ -634,7 +663,7 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 			lab85, ldisp85, rab85, rdisp85, zab85, zdisp85 = add_voigt(d,DoppTemp,
 													   Rb85atom.mass,
 													   wavenumber,gamma,
-													   voigtwidth,Rb_isotope,
+													   voigtwidth,Rb_isotope, Elem,
 													   ltransno85,lenergy85,lstrength85,
 													   rtransno85,renergy85,rstrength85,
 													   ztransno85,zenergy85,zstrength85)
@@ -643,7 +672,7 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 			lab87, ldisp87, rab87, rdisp87, zab87, zdisp87 = add_voigt(d,DoppTemp,
 													   Rb87atom.mass,
 													   wavenumber,gamma,
-													   voigtwidth,Rb_isotope,
+													   voigtwidth,Rb_isotope, Elem,
 													   ltransno87,lenergy87,lstrength87,
 													   rtransno87,renergy87,rstrength87,
 													   ztransno87,zenergy87,zstrength87)
@@ -659,7 +688,7 @@ def calc_chi(X, p_dict, groundPop,verbose=False):
 	elif Elem=='Cs':
 		lab, ldisp, rab, rdisp, zab, zdisp = 0,0,0,0,0,0
 		lab, ldisp, rab, rdisp, zab, zdisp = add_voigt(d,DoppTemp,CsAtom.mass,wavenumber,
-										   gamma,voigtwidth,
+										   gamma,voigtwidth, Rb_isotope, Elem,
 										   ltransno,lenergy,lstrength,
 										   rtransno,renergy,rstrength,
 										   ztransno,zenergy,zstrength)

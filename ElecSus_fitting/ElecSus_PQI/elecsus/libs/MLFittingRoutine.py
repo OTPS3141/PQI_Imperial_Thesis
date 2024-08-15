@@ -39,7 +39,7 @@ import lmfit as lm
 
 from spectra import get_spectra
 
-def fit_function(x,E_x,E_y,E_phase,T,lcell,Bfield,Btheta,Bphi,GammaBuf,shift, groundPop, add_gaussian, popShift87, popShift85, sigma, X0_shift, gaussianPop,
+def fit_function(x,E_x,E_y,E_phase,T,lcell,Bfield,Btheta,Bphi,GammaBuf,shift, groundPop, add_gaussian, popShift87, popShift85, popShiftCs, sigma, X0_shift, gaussianPop,
 							DoppTemp=20,rb85frac=72.17,K40frac=0.01,K41frac=6.73,
 							Elem='Rb',Dline='D2',Constrain=True,output='S0', verbose=False):
 	"""
@@ -63,8 +63,8 @@ def fit_function(x,E_x,E_y,E_phase,T,lcell,Bfield,Btheta,Bphi,GammaBuf,shift, gr
 	p_dict = {'Elem':Elem,'Dline':Dline,'T':T,'lcell':lcell,
 			'Bfield':Bfield,'Btheta':Btheta,'Bphi':Bphi,'GammaBuf':GammaBuf, 
 			'shift':shift,'DoppTemp':DoppTemp,'Constrain':Constrain,
-			'rb85frac':rb85frac,'K40frac':K40frac,'K41frac':K41frac, 'popShift87':popShift87, 'popShift85':popShift85, 
-			'sigma': sigma, 'X0_shift': X0_shift, 'gaussianPop': gaussianPop}
+			'rb85frac':rb85frac,'K40frac':K40frac,'K41frac':K41frac, 'popShift87':popShift87, 'popShift85':popShift85, 'popShiftCs':popShiftCs,
+									'sigma': sigma, 'X0_shift': X0_shift, 'gaussianPop': gaussianPop}
 	
 	#for key in p_dict.keys():
 	#	print key, p_dict[key]

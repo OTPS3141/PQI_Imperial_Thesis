@@ -1,0 +1,5 @@
+LECROYWS10,10161,Waveform
+Segments,1,SegmentSize,1000002
+Segment,TrigTime,TimeSinceSegment1
+#1,28-May-2024 16:13:51,0                 
+Time,Ampl

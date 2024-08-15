@@ -2106,8 +2106,8 @@ class solver:
         )
 
     
-    def retrieval_efficiency(self, E, mi, p):
-        return ( np.trapz(pow(np.abs(E[mi:, -1, p]), 2), self.tpoints[mi:]) )
+    def retrieval_efficiency(self, E, mi, me, p):
+        return ( np.trapz(pow(np.abs(E[mi:me, -1, p]), 2), self.tpoints[mi:me]) )
         
     def check_energy(self):
         total = 0
@@ -2138,8 +2138,8 @@ def photon_decaying_exp(t, t0, tau):
 
 def gaussian(t, t0, FWHM, A):
     """
-    Gaussian function.  Returns value at specified time.
-    t0 = peak time
+    G
+    t0 = peak timeaussian function.  Returns value at specified time.
     FWHM = full width at half maximum
     """
     return A*np.exp(-4*np.log(2)*np.power(t - t0, 2.) / (np.power(FWHM, 2.))) 

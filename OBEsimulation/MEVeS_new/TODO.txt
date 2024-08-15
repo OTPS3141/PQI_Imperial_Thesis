@@ -1,0 +1,12 @@
+Atom:
+    1.fix decay rates
+
+MEVeS:
+    
+
+Optimiser:
+    1. Live plot of controls show Einit and Eout (dashed lines)
+    2. Save pickle and npz of results
+    3. Plot_from_file() update
+    3. Big tidy
+    4. Is there a way to generalise this?

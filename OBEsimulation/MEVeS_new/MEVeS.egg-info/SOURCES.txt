@@ -1,0 +1,10 @@
+setup.py
+MEVeS.egg-info/PKG-INFO
+MEVeS.egg-info/SOURCES.txt
+MEVeS.egg-info/dependency_links.txt
+MEVeS.egg-info/top_level.txt
+libs/MEVeS.py
+libs/Optimiser.py
+libs/__init__.py
+libs/AtomicConstants/Atom.py
+libs/AtomicConstants/__init__.py
